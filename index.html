@@ -342,7 +342,7 @@ function cardHTML(key) {
   const firstTrack = tracks[0] || '';
   const flash = firstTrack && isFlash(firstTrack);
   const safe = key.replace(/[^a-zA-Z0-9]/g,'_');
-  const order2display = rows[0]?.order2 ? rows[0].order2.replace(/^0+/,'') : key;
+  const order2display = rows[0]?.order2 || key;
 
   return `<div class="card" onclick="openDetail('${key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
   <div class="ci">
@@ -390,11 +390,19 @@ function render() {
     return blob.includes(q);
   });
 
+  // แปลงวันที่ dd/mm → ตัวเลข สำหรับเรียง
+  function dateSort(rows) {
+    const d = getDate(rows);
+    if (!d) return 0;
+    const parts = d.split('/');
+    if (parts.length === 2) return parseInt(parts[1]||0)*100 + parseInt(parts[0]||0);
+    return 0;
+  }
   keys.sort((a,b) => {
-    const ra=grouped.get(a), rb=grouped.get(b);
-    const pa=hasRemark(ra)?0:1, pb=hasRemark(rb)?0:1;
-    if (pa!==pb) return pa-pb;
-    return (getDate(rb)||'').localeCompare(getDate(ra)||'');
+    // ล่าสุดขึ้นบนเสมอ
+    const da = dateSort(grouped.get(a));
+    const db = dateSort(grouped.get(b));
+    return db - da;
   });
 
   if (!keys.length) {
@@ -455,7 +463,7 @@ function openDetail(key) {
 
   document.getElementById('sheetBody').innerHTML = `
     <div class="shhead">
-      <div class="shoid">${rows[0]?.order2 ? rows[0].order2.replace(/^0+/,'') : key}</div>
+      <div class="shoid">${rows[0]?.order2 || key}</div>
       <div class="shsub" style="margin-top:2px;font-size:11px;color:rgba(255,255,255,0.6)">${key}</div>
       <div class="shsub" style="margin-top:4px">${date?date+' · ':''}${rows.length} SKU · ${ST[s]?.ico||'?'} ${ST[s]?.lbl||s}</div>
     </div>
