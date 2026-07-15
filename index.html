@@ -230,8 +230,42 @@ async function loadSheet() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const text = await resp.text();
     if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('Sheet ไม่ได้ตั้งค่าเป็น Public');
-    const rows = parseCSV(text);
-    if (!rows.length) throw new Error('ไม่พบข้อมูลใน Sheet');
+    const allRows = parseCSV(text);
+    if (!allRows.length) throw new Error('ไม่พบข้อมูลใน Sheet');
+
+    // กรองเฉพาะ 2 เดือนล่าสุด โดยดูจากวันที่สั่งซื้อ (dd/mm)
+    function getMonthFromRow(r) {
+      // ลองจาก date field ก่อน (format dd/m หรือ d/m)
+      if (r.date && r.date.includes('/')) {
+        const parts = r.date.trim().split('/');
+        if (parts.length >= 2) {
+          const m = parseInt(parts[1]);
+          if (!isNaN(m) && m >= 1 && m <= 12) return m;
+        }
+      }
+      // fallback: month column
+      if (r.month) {
+        const m = parseInt(r.month);
+        if (!isNaN(m) && m >= 1 && m <= 12) return m;
+      }
+      return null;
+    }
+
+    // หาเดือนล่าสุดที่มีในข้อมูล
+    const monthsFound = [...new Set(allRows.map(r => getMonthFromRow(r)).filter(m => m !== null))].sort((a,b) => b-a);
+    const top2Months = new Set(monthsFound.slice(0, 2));
+
+    const rows = allRows.filter(r => {
+      const m = getMonthFromRow(r);
+      return m !== null && top2Months.has(m);
+    });
+
+    // แสดงเดือนที่แสดงอยู่ใน subtitle
+    const monthNames = {1:'ม.ค.',2:'ก.พ.',3:'มี.ค.',4:'เม.ย.',5:'พ.ค.',6:'มิ.ย.',7:'ก.ค.',8:'ส.ค.',9:'ก.ย.',10:'ต.ค.',11:'พ.ย.',12:'ธ.ค.'};
+    const monthLabel = [...top2Months].sort((a,b)=>a-b).map(m=>monthNames[m]||m).join(' + ');
+    const subEl = document.getElementById('branchLabel');
+    if (subEl) subEl.textContent = '· Track  |  ' + monthLabel;
+
     grouped = groupRows(rows);
     renderTabs();
     render();
