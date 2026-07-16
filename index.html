@@ -619,7 +619,7 @@ function openAdmin() {
   if (!APPS_SCRIPT_URL) {
     document.getElementById('cfgNote').textContent = '⚠ ยังไม่ได้ใส่ APPS_SCRIPT_URL ในไฟล์นี้ — นำเข้าไฟล์ไม่ได้จนกว่าจะตั้งค่า';
   } else {
-    document.getElementById('cfgNote').textContent = 'ไฟล์ที่นำเข้าจะถูกเพิ่มเป็นแถวใหม่ใน Google Sheet หลัก ระบบจะข้ามแถวที่ซ้ำ (เช็คจาก Order2 + Tracking + SKU) ให้อัตโนมัติ';
+    document.getElementById('cfgNote').textContent = 'ไฟล์ที่นำเข้าจะถูกจับคู่กับ Order2 + SKU เดิม — ถ้ามีอยู่แล้วจะอัปเดตสถานะ/เลขพัสดุให้ ถ้ายังไม่มีจะเพิ่มเป็นแถวใหม่ (import ไฟล์เดิมซ้ำเพื่ออัปเดตสถานะได้เลย)';
   }
   document.getElementById('adminOverlay').classList.add('open');
   document.getElementById('adminSheet').classList.add('open');
@@ -723,7 +723,7 @@ async function handleImportFile(e) {
     if (out.error) throw new Error(out.error);
 
     resultEl.className = 'import-result ok';
-    resultEl.textContent = `✅ นำเข้าสำเร็จ ${out.added} แถว · ข้ามซ้ำ ${out.skipped} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)`;
+    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)`;
     loadSheet();
   } catch (err) {
     resultEl.className = 'import-result err';
@@ -750,7 +750,7 @@ async function loadLog() {
     }
     el.innerHTML = out.logs.slice().reverse().map(l => `
       <div class="log-item">
-        <div class="log-top"><span>${l.filename||'-'}</span><span>+${l.added} / ข้าม ${l.skipped}</span></div>
+        <div class="log-top"><span>${l.filename||'-'}</span><span>+${l.added} ใหม่ / ${l.updated} อัปเดต</span></div>
         <div class="log-sub">${l.time||''}</div>
       </div>`).join('');
   } catch (err) {
