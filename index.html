@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>BATA ISS · Track</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -125,6 +126,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .htext .ht{font-size:11px;color:var(--muted);margin-top:1px}
 
 .track-open{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--blue-c);font-weight:600;text-decoration:none;padding:2px 6px;border-radius:4px;background:var(--blue-bg);border:0.5px solid #B5D4F4;flex-shrink:0}
+
+/* Admin: import + log (hidden, only reachable via ?admin=1) */
+.admin-btn{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:white;cursor:pointer;font-weight:600;margin-top:4px}
+.atabs{display:flex;gap:6px;padding:0 16px 10px}
+.atab{flex:1;text-align:center;padding:7px;border-radius:7px;font-size:12px;font-weight:700;background:var(--off);color:var(--muted);cursor:pointer;border:0.5px solid var(--border)}
+.atab.on{background:var(--red);color:white;border-color:var(--red)}
+.apanel{display:none}
+.apanel.on{display:block}
+.drop{border:2px dashed var(--border);border-radius:10px;padding:26px 14px;text-align:center;cursor:pointer;margin-bottom:12px}
+.drop:active{background:var(--off)}
+.drop-txt{font-size:12px;color:var(--muted);margin-top:6px}
+.import-result{border-radius:8px;padding:12px;font-size:12px;margin-bottom:12px;display:none}
+.import-result.ok{display:block;background:var(--green-bg);color:var(--green-c);border:0.5px solid #B9E6B9}
+.import-result.err{display:block;background:var(--red-l);color:var(--red-d);border:0.5px solid #FFCCCC}
+.log-item{padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.log-item:last-child{border-bottom:none}
+.log-top{display:flex;justify-content:space-between;font-weight:700;color:var(--text)}
+.log-sub{color:var(--muted);margin-top:2px;font-size:11px}
+.cfg-note{font-size:11px;color:var(--muted);background:var(--off);border-radius:8px;padding:10px 12px;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -138,7 +158,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="header-right" style="text-align:right">
       <div class="date-lbl">วันนี้</div>
       <div class="date-val" id="todayDate">—</div>
-      <div style="margin-top:4px"><button onclick="loadSheet()" style="font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:white;cursor:pointer;font-weight:600">↻ รีเฟรช</button></div>
+      <div style="margin-top:4px;display:flex;gap:6px;justify-content:flex-end">
+        <button onclick="loadSheet()" class="admin-btn">↻ รีเฟรช</button>
+        <button id="adminBtn" onclick="openAdmin()" class="admin-btn" style="display:none">⚙ นำเข้า/Log</button>
+      </div>
     </div>
   </div>
   <div class="alert-bar" id="alertBar">
@@ -165,6 +188,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="sheet" id="sheet">
   <div class="shdl"></div>
   <div id="sheetBody"></div>
+</div>
+
+<div class="overlay" id="adminOverlay" onclick="closeAdmin()"></div>
+<div class="sheet" id="adminSheet">
+  <div class="shdl"></div>
+  <div class="shhead" style="margin-top:12px">
+    <div class="shoid" style="font-size:16px">นำเข้าออเดอร์ &amp; Log</div>
+    <div class="shsub">เฉพาะแอดมิน — สาขาไม่เห็นเมนูนี้</div>
+  </div>
+  <div class="shbody">
+    <div class="atabs">
+      <div class="atab on" id="atab_import" onclick="setAdminTab('import')">นำเข้าไฟล์</div>
+      <div class="atab" id="atab_log" onclick="setAdminTab('log')">ประวัติ Log</div>
+    </div>
+
+    <div class="apanel on" id="apanel_import">
+      <div class="cfg-note" id="cfgNote"></div>
+      <div class="drop" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:26px">📄</div>
+        <div class="drop-txt">แตะเพื่อเลือกไฟล์ .xlsx / .csv<br>คอลัมน์ที่รองรับ: Order1, Order2, วันที่สั่งซื้อ, Tracking No, SKU Code</div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(event)">
+      <div class="import-result" id="importResult"></div>
+    </div>
+
+    <div class="apanel" id="apanel_log">
+      <div id="logList"><div class="loading-txt" style="text-align:center;padding:20px 0">แตะแท็บนี้เพื่อโหลด Log</div></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -298,13 +350,14 @@ function hasTracking(rows) {
   return rows.some(r => r.tracking && r.tracking !== '___TF' && r.tracking.trim().length > 4);
 }
 function isCancelled(rows) {
-  return rows.every(r => !r.status || r.shop.includes('ยกเลิก') || r.status.includes('ยกเลิก'));
+  return rows.some(r => (r.status && r.status.includes('ยกเลิก')) || (r.shop && r.shop.includes('ยกเลิก')));
 }
 function hasRemark(rows) {
   return rows.some(r => r.remark && r.remark.trim());
 }
 function autoStatus(key) {
   const rows = grouped.get(key) || [];
+  if (isCancelled(rows)) return 'cancel';
   const s = (rows[0].status || '').toLowerCase();
   if (s === 'confirmed') return hasTracking(rows) ? 'transit' : 'prepare';
   return 'wait';
@@ -319,6 +372,7 @@ const ST = {
   wait:    { lbl:'รอดำเนินการ',        ico:'⏳', acc:'acc-gray',  bdg:'bdg-gray',  sel:'sel-gray'   },
   prepare: { lbl:'เตรียมการจัดส่ง',    ico:'📦', acc:'acc-amber', bdg:'bdg-amber', sel:'sel-amber'  },
   transit: { lbl:'อยู่ระหว่างการจัดส่ง',ico:'🚛', acc:'acc-blue',  bdg:'bdg-blue',  sel:'sel-blue'   },
+  cancel:  { lbl:'ยกเลิกออเดอร์',      ico:'❌', acc:'acc-red',   bdg:'bdg-red',   sel:'sel-red'    },
 };
 
 let activeTab = 'all';
@@ -335,7 +389,7 @@ function getDate(rows) {
 }
 
 function renderTabs() {
-  const cnt = {all:0, wait:0, prepare:0, transit:0};
+  const cnt = {all:0, wait:0, prepare:0, transit:0, cancel:0};
   grouped.forEach((_,k) => {
     cnt.all++;
     const s = getStatus(k);
@@ -347,6 +401,7 @@ function renderTabs() {
     {k:'wait',    lbl:`⏳ รอดำเนินการ ${cnt.wait}`},
     {k:'prepare', lbl:`📦 เตรียมจัดส่ง ${cnt.prepare}`},
     {k:'transit', lbl:`🚛 กำลังจัดส่ง ${cnt.transit}`},
+    {k:'cancel',  lbl:`❌ ยกเลิก ${cnt.cancel}`},
   ];
 
   document.getElementById('tabs').innerHTML = tabs.map(t =>
@@ -368,7 +423,7 @@ function setTab(k) { activeTab = k; renderTabs(); render(); }
 function cardHTML(key) {
   const rows = grouped.get(key);
   const s = getStatus(key);
-  const st = ST[s] || ST.allocate;
+  const st = ST[s] || ST.wait;
   const date = getDate(rows);
   const shops = getShops(rows);
   const tracks = getTracks(rows);
@@ -447,6 +502,7 @@ function render() {
   const grpWait    = keys.filter(k => getStatus(k)==='wait');
   const grpPrepare = keys.filter(k => getStatus(k)==='prepare');
   const grpTransit = keys.filter(k => getStatus(k)==='transit');
+  const grpCancel  = keys.filter(k => getStatus(k)==='cancel');
 
   let html = '';
   function sec(label, list, cntCls) {
@@ -458,6 +514,7 @@ function render() {
   if (activeTab==='all'||activeTab==='wait')    sec('⏳ รอดำเนินการ', grpWait, 'cnt-gray');
   if (activeTab==='all'||activeTab==='prepare') sec('📦 เตรียมการจัดส่ง', grpPrepare, 'cnt-amber');
   if (activeTab==='all'||activeTab==='transit') sec('🚛 อยู่ระหว่างการจัดส่ง', grpTransit, 'cnt-blue');
+  if (activeTab==='all'||activeTab==='cancel')  sec('❌ ยกเลิกออเดอร์', grpCancel, 'cnt-red');
 
   document.getElementById('content').innerHTML = html || `<div class="empty"><div class="empty-ico">📭</div><div class="empty-txt">ไม่พบออเดอร์</div></div>`;
 }
@@ -484,7 +541,7 @@ function openDetail(key) {
     </div>`;
   }).join('');
 
-  const stMap = {'allocate':'wait','shipped':'transit','picked':'transit','cancel':'wait'};
+  const stMap = {'allocate':'wait','shipped':'transit','picked':'transit','cancel':'cancel'};
     const histHTML = hist.length
     ? hist.map(h => {
         const sk = stMap[h.s] || h.s;
@@ -550,6 +607,154 @@ function closeSheet() {
 let _ty = 0;
 document.getElementById('sheet').addEventListener('touchstart', e => { _ty = e.touches[0].clientY; });
 document.getElementById('sheet').addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _ty > 70) closeSheet(); });
+
+/* ===================== ADMIN: Import + Log ===================== */
+// ตั้งค่า URL ของ Apps Script Web App ที่นี่หลัง Deploy (ดูขั้นตอนแยกที่ให้ไว้)
+const APPS_SCRIPT_URL = ""; // เช่น "https://script.google.com/macros/s/AKfycb.../exec"
+
+const isAdmin = new URLSearchParams(location.search).get('admin') === '1';
+if (isAdmin) document.getElementById('adminBtn').style.display = 'inline-block';
+
+function openAdmin() {
+  if (!APPS_SCRIPT_URL) {
+    document.getElementById('cfgNote').textContent = '⚠ ยังไม่ได้ใส่ APPS_SCRIPT_URL ในไฟล์นี้ — นำเข้าไฟล์ไม่ได้จนกว่าจะตั้งค่า';
+  } else {
+    document.getElementById('cfgNote').textContent = 'ไฟล์ที่นำเข้าจะถูกเพิ่มเป็นแถวใหม่ใน Google Sheet หลัก ระบบจะข้ามแถวที่ซ้ำ (เช็คจาก Order2 + Tracking + SKU) ให้อัตโนมัติ';
+  }
+  document.getElementById('adminOverlay').classList.add('open');
+  document.getElementById('adminSheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').classList.remove('open');
+  document.getElementById('adminSheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function setAdminTab(t) {
+  document.getElementById('atab_import').classList.toggle('on', t==='import');
+  document.getElementById('atab_log').classList.toggle('on', t==='log');
+  document.getElementById('apanel_import').classList.toggle('on', t==='import');
+  document.getElementById('apanel_log').classList.toggle('on', t==='log');
+  if (t === 'log') loadLog();
+}
+
+// จับคู่ชื่อคอลัมน์ในไฟล์ที่ import แบบยืดหยุ่น ไม่สนตัวพิมพ์เล็ก/ใหญ่หรือช่องว่าง
+function detectCols(headerRow) {
+  const norm = headerRow.map(h => String(h||'').toLowerCase().replace(/\s+/g,''));
+  const find = (test) => norm.findIndex(test);
+  return {
+    order1:   find(h => h.includes('order1') || h.includes('oder1')),
+    order2:   find(h => h.includes('order2') || h.includes('oder2')),
+    date:     find(h => h.includes('วันที่')),
+    tracking: find(h => h.includes('tracking')),
+    sku:      find(h => h.includes('sku')),
+  };
+}
+
+function fmtDate(v) {
+  // รองรับทั้ง Date object (จาก Excel serial) และ string "YYYY-MM-DD HH:mm:ss"
+  let d = null;
+  if (v instanceof Date && !isNaN(v)) d = v;
+  else if (typeof v === 'string') {
+    const m = v.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) d = new Date(+m[1], +m[2]-1, +m[3]);
+  }
+  if (!d) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}`;
+}
+
+function padOrder2(v) {
+  const digits = String(v||'').replace(/\D/g,'');
+  return digits ? digits.padStart(13,'0') : '';
+}
+
+async function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const resultEl = document.getElementById('importResult');
+  resultEl.className = 'import-result';
+  resultEl.textContent = '';
+
+  if (!APPS_SCRIPT_URL) {
+    resultEl.className = 'import-result err';
+    resultEl.textContent = '⚠ ยังไม่ได้ตั้งค่า APPS_SCRIPT_URL ในไฟล์ — ใส่ URL ก่อนถึงจะนำเข้าได้';
+    e.target.value = '';
+    return;
+  }
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (!data.length) throw new Error('ไฟล์ไม่มีข้อมูล');
+
+    const cols = detectCols(data[0]);
+    if (cols.order1 < 0 && cols.order2 < 0) throw new Error('หาคอลัมน์ Order1/Order2 ในไฟล์ไม่เจอ ตรวจชื่อหัวตารางอีกครั้ง');
+
+    const rows = [];
+    for (let i = 1; i < data.length; i++) {
+      const r = data[i];
+      if (!r || (!r[cols.order1] && !r[cols.order2])) continue;
+      const dateVal = cols.date >= 0 ? r[cols.date] : '';
+      rows.push({
+        order1:   cols.order1 >= 0 ? String(r[cols.order1]||'').trim() : '',
+        order2:   cols.order2 >= 0 ? padOrder2(r[cols.order2]) : '',
+        date:     fmtDate(dateVal),
+        tracking: cols.tracking >= 0 ? String(r[cols.tracking]||'').trim() : '',
+        sku:      cols.sku >= 0 ? String(r[cols.sku]||'').trim() : '',
+      });
+    }
+    if (!rows.length) throw new Error('ไม่พบแถวข้อมูลที่ import ได้ในไฟล์นี้');
+
+    resultEl.className = 'import-result';
+    resultEl.textContent = `กำลังนำเข้า ${rows.length} แถว...`;
+
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // เลี่ยง CORS preflight ของ Apps Script
+      body: JSON.stringify({ action: 'import', filename: file.name, rows }),
+    });
+    const out = await resp.json();
+    if (out.error) throw new Error(out.error);
+
+    resultEl.className = 'import-result ok';
+    resultEl.textContent = `✅ นำเข้าสำเร็จ ${out.added} แถว · ข้ามซ้ำ ${out.skipped} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)`;
+    loadSheet();
+  } catch (err) {
+    resultEl.className = 'import-result err';
+    resultEl.textContent = '⚠ นำเข้าไม่สำเร็จ: ' + err.message;
+  } finally {
+    e.target.value = '';
+  }
+}
+
+async function loadLog() {
+  const el = document.getElementById('logList');
+  if (!APPS_SCRIPT_URL) {
+    el.innerHTML = '<div class="cfg-note">⚠ ยังไม่ได้ตั้งค่า APPS_SCRIPT_URL</div>';
+    return;
+  }
+  el.innerHTML = '<div class="loading-txt" style="text-align:center;padding:20px 0">กำลังโหลด...</div>';
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=log');
+    const out = await resp.json();
+    if (out.error) throw new Error(out.error);
+    if (!out.logs || !out.logs.length) {
+      el.innerHTML = '<div class="loading-txt" style="text-align:center;padding:20px 0">ยังไม่มีประวัติการนำเข้า</div>';
+      return;
+    }
+    el.innerHTML = out.logs.slice().reverse().map(l => `
+      <div class="log-item">
+        <div class="log-top"><span>${l.filename||'-'}</span><span>+${l.added} / ข้าม ${l.skipped}</span></div>
+        <div class="log-sub">${l.time||''}</div>
+      </div>`).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="import-result err" style="display:block">⚠ โหลด Log ไม่ได้: ${err.message}</div>`;
+  }
+}
 
 loadSheet();
 </script>
