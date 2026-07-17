@@ -630,7 +630,7 @@ document.getElementById('sheet').addEventListener('touchend',   e => { if (e.cha
 
 /* ===================== ADMIN: Import + Log ===================== */
 // ตั้งค่า URL ของ Apps Script Web App ที่นี่หลัง Deploy (ดูขั้นตอนแยกที่ให้ไว้)
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw65dIvTZ3O8oZpyOJeGovFVHoXiX_WQD9ugKB7y4rZ1l4oia2dyaWhbUYSan7NylY8fQ/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhAG2xYuUNZjB-AtBOlYxTFZUZQYpNEMWigpgGsjpvX2njhCYEdNInYrb2j-WVECoTig/exec";
 
 const isAdmin = new URLSearchParams(location.search).get('admin') === '1';
 if (isAdmin) document.getElementById('adminBtn').style.display = 'inline-block';
@@ -737,13 +737,13 @@ async function handleImportFile(e) {
     const resp = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' }, // เลี่ยง CORS preflight ของ Apps Script
-      body: JSON.stringify({ action: 'import', filename: file.name, rows }),
+      body: JSON.stringify({ action: 'import', filename: file.name, rows, debugOrder2: '0000100754009', debugSku: '3419904100' }),
     });
     const out = await resp.json();
     if (out.error) throw new Error(out.error);
 
     resultEl.className = 'import-result ok';
-    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)`;
+    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)` + (out.debug ? ' | DEBUG: ' + JSON.stringify(out.debug) : ' | DEBUG: null (ไม่เจอ key นี้เลยระหว่างประมวลผล)');
     loadSheet();
   } catch (err) {
     resultEl.className = 'import-result err';
