@@ -242,12 +242,42 @@ const COL = {
 
 let grouped = new Map();
 
+// parse CSV แบบรองรับเครื่องหมายคำพูดจริง (quoted field ที่มี comma หรือขึ้นบรรทัดใหม่ในตัวได้)
+// เดิมใช้ text.split('\n') + line.split(',') แบบง่ายๆ ซึ่งพังทันทีถ้ามีเซลล์ไหนมีข้อความขึ้นบรรทัดใหม่อยู่ข้างใน
+// (เช่น remark ที่พิมพ์กด Enter ในเซลล์) เพราะจะทำให้นับแถวเพี้ยนไปหมดตั้งแต่จุดนั้นเป็นต้นไป
+function parseCSVRows_(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  const s = text;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* ignore, handled by \n */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
 function parseCSV(text) {
-  const lines = text.trim().split('\n');
+  const lines = parseCSVRows_(text);
   const rows = [];
   // skip header row (row 0)
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim());
+    const cols = lines[i].map(c => c.trim());
     if (!cols[COL.order1] && !cols[COL.order2]) continue;
     rows.push({
       order1:   cols[COL.order1]   || '',
