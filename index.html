@@ -743,7 +743,7 @@ async function handleImportFile(e) {
     if (out.error) throw new Error(out.error);
 
     resultEl.className = 'import-result ok';
-    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)` + (out.debug ? ' | DEBUG: ' + JSON.stringify(out.debug) : ' | DEBUG: null (ไม่เจอ key นี้เลยระหว่างประมวลผล)');
+    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)` + ` | DEBUG: ${JSON.stringify(out.debug)} | rawMatchCount: ${out.rawMatchCount} | rawMatchRow: ${JSON.stringify(out.rawMatchRow)}`;
     loadSheet();
   } catch (err) {
     resultEl.className = 'import-result err';
