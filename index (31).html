@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>BATA ISS · Track</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --red:#CC0000;--red-d:#A00000;--red-l:#FFF2F2;
+  --white:#FFFFFF;--off:#F7F5F3;--border:#E8E2DD;
+  --text:#1A1410;--muted:#6B6560;--faint:#C0B8B0;
+  --amber-bg:#FEF6E6;--amber-c:#7A5000;
+  --blue-bg:#EBF3FF;--blue-c:#0A4080;
+  --green-bg:#EEFAEE;--green-c:#1A6B1A;
+  --gray-bg:#F0EDEA;--gray-c:#5A5450;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--off);color:var(--text);min-height:100vh}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:14px}
+.spinner{width:32px;height:32px;border:3px solid rgba(204,0,0,0.2);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-txt{font-size:13px;color:var(--muted)}
+.error-box{margin:20px 12px;background:#FFF2F2;border:1px solid #FFCCCC;border-radius:10px;padding:16px;font-size:13px;color:var(--red-d)}
+.error-box b{display:block;margin-bottom:6px;font-size:14px}
+.retry-btn{margin-top:10px;padding:7px 16px;border-radius:7px;border:1px solid var(--red);background:white;color:var(--red);font-weight:600;font-size:13px;cursor:pointer}
+
+.header{background:var(--red)}
+.header-top{padding:14px 16px 10px;display:flex;align-items:flex-start;justify-content:space-between}
+.brand{font-size:22px;font-weight:800;color:white;letter-spacing:3px}
+.branch-sub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px}
+.header-right{text-align:right}
+.date-lbl{font-size:10px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.5px}
+.date-val{font-size:13px;color:white;font-weight:600;margin-top:1px}
+
+.alert-bar{background:rgba(0,0,0,0.22);padding:7px 14px;display:none;align-items:center;gap:8px}
+.alert-bar span{font-size:12px;color:white;font-weight:600}
+.adot{width:7px;height:7px;border-radius:50%;background:#FFD700;flex-shrink:0;animation:blink 1.8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+.tabs{padding:8px 12px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;background:var(--red)}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:5px 13px;border-radius:99px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);border:1.5px solid rgba(255,255,255,0.25);white-space:nowrap;cursor:pointer;background:transparent}
+.tab.on{background:white;color:var(--red);border-color:white}
+
+.search-row{background:var(--red);padding:6px 12px 12px}
+.sbox{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.17);border-radius:8px;padding:8px 12px}
+.sbox input{background:none;border:none;outline:none;font-size:13px;color:white;flex:1;min-width:0}
+.sbox input::placeholder{color:rgba(255,255,255,0.5)}
+.sico{width:15px;height:15px;flex-shrink:0;opacity:.7}
+.sico path,.sico circle,.sico line{stroke:white;stroke-width:2;fill:none}
+
+.content{padding:8px 12px 80px}
+.sec-head{display:flex;align-items:center;gap:8px;padding:12px 2px 8px}
+.sec-head h2{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
+.cnt{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
+.cnt-red{background:var(--red-l);color:var(--red-d)}
+.cnt-amber{background:var(--amber-bg);color:var(--amber-c)}
+.cnt-gray{background:var(--gray-bg);color:var(--gray-c)}
+.cnt-green{background:var(--green-bg);color:var(--green-c)}
+.cnt-blue{background:var(--blue-bg);color:var(--blue-c)}
+.cards{display:flex;flex-direction:column;gap:7px;margin-bottom:6px}
+
+.card{background:var(--white);border-radius:10px;border:0.5px solid var(--border);overflow:hidden;cursor:pointer}
+.card:active{opacity:.85}
+.ci{display:flex}
+.acc{width:4px;flex-shrink:0}
+.acc-red{background:var(--red)}.acc-amber{background:#EF9F27}.acc-blue{background:#378ADD}.acc-green{background:#2D9B2D}.acc-gray{background:#C0B8B0}
+.cb{padding:10px 12px;flex:1;min-width:0}
+.r1{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:4px}
+.oid{font-size:14px;font-weight:700;color:var(--text)}
+.bdg{font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0;text-transform:uppercase;letter-spacing:.3px}
+.bdg-red{background:var(--red-l);color:var(--red-d)}
+.bdg-amber{background:var(--amber-bg);color:var(--amber-c)}
+.bdg-blue{background:var(--blue-bg);color:var(--blue-c)}
+.bdg-green{background:var(--green-bg);color:var(--green-c)}
+.bdg-gray{background:var(--gray-bg);color:var(--gray-c)}
+.r2{display:flex;flex-wrap:wrap;gap:5px 12px;margin-bottom:4px}
+.mi{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.misvg{width:11px;height:11px;flex-shrink:0;stroke:currentColor;stroke-width:2;fill:none}
+.rmk{font-size:11px;color:#C06020;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.rmk svg{flex-shrink:0}
+.trow{display:flex;align-items:center;gap:6px;padding-top:6px;border-top:0.5px solid var(--border);margin-top:3px}
+.tnum{font-family:'Courier New',monospace;font-size:11px;color:var(--red);font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flash-tag{font-size:9px;font-weight:700;color:#FF6600;background:#FFF3E8;border-radius:3px;padding:1px 5px;flex-shrink:0}
+.bcopy{font-size:10px;padding:3px 9px;border-radius:6px;border:0.5px solid var(--border);background:var(--off);color:var(--muted);font-weight:600;cursor:pointer;flex-shrink:0}
+.bcopy.ok{background:var(--green-bg);color:var(--green-c);border-color:#2D9B2D}
+.notrack{font-size:11px;color:var(--faint);margin-top:5px;padding-top:5px;border-top:0.5px solid var(--border)}
+
+.empty{text-align:center;padding:60px 20px 40px}
+.empty-ico{font-size:40px;margin-bottom:10px}
+.empty-txt{font-size:14px;color:var(--faint)}
+
+/* Sheet */
+.overlay{display:none;position:fixed;inset:0;background:rgba(20,5,5,0.5);z-index:100}
+.overlay.open{display:block}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-radius:16px 16px 0 0;z-index:101;max-height:90vh;overflow-y:auto;transform:translateY(100%);transition:transform .25s ease}
+.sheet.open{transform:translateY(0)}
+.shdl{width:36px;height:3px;background:var(--border);border-radius:2px;margin:10px auto 0}
+.shhead{background:var(--red);padding:12px 16px 16px;margin-top:12px}
+.shoid{font-size:20px;font-weight:800;color:white;letter-spacing:-.4px}
+.shsub{font-size:11px;color:rgba(255,255,255,0.7);margin-top:3px}
+.shbody{padding:14px 16px}
+.slbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px}
+
+.iblock{background:var(--off);border-radius:8px;border:0.5px solid var(--border);padding:0 12px;margin-bottom:16px}
+.irow{display:flex;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.irow:last-child{border-bottom:none}
+.ilbl{font-size:11px;color:var(--muted);width:74px;flex-shrink:0}
+.ival{font-size:12px;font-weight:600;color:var(--text);flex:1;word-break:break-all}
+.ival.mono{font-family:'Courier New',monospace;font-size:11px;color:var(--red);font-weight:700}
+.sublist{background:var(--off);border-radius:8px;border:0.5px solid var(--border);overflow:hidden;margin-bottom:16px}
+.subitem{padding:9px 12px;border-bottom:0.5px solid var(--border)}
+.subitem:last-child{border-bottom:none}
+.subshop{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.subsku{font-size:10px;color:var(--faint);font-family:'Courier New',monospace}
+.subtrack{font-size:11px;font-family:'Courier New',monospace;color:var(--red);font-weight:700;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.subremark{font-size:11px;color:#C06020;font-weight:600;margin-top:3px}
+.hist{display:flex;flex-direction:column;padding-bottom:16px}
+.hi{display:flex;gap:10px;padding:8px 0;position:relative}
+.hi:not(:last-child)::after{content:'';position:absolute;left:9px;top:23px;bottom:-2px;width:2px;background:var(--border)}
+.hdot{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px}
+.hdot-red{background:var(--red);color:white}
+.hdot-gray{background:#E8E2DD;color:var(--muted)}
+.htext .hs{font-size:12px;font-weight:600;color:var(--text)}
+.htext .ht{font-size:11px;color:var(--muted);margin-top:1px}
+
+.track-open{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--blue-c);font-weight:600;text-decoration:none;padding:2px 6px;border-radius:4px;background:var(--blue-bg);border:0.5px solid #B5D4F4;flex-shrink:0}
+
+/* Admin: import + log (hidden, only reachable via ?admin=1) */
+.admin-btn{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:white;cursor:pointer;font-weight:600;margin-top:4px}
+.atabs{display:flex;gap:6px;padding:0 16px 10px}
+.atab{flex:1;text-align:center;padding:7px;border-radius:7px;font-size:12px;font-weight:700;background:var(--off);color:var(--muted);cursor:pointer;border:0.5px solid var(--border)}
+.atab.on{background:var(--red);color:white;border-color:var(--red)}
+.apanel{display:none}
+.apanel.on{display:block}
+.drop{border:2px dashed var(--border);border-radius:10px;padding:26px 14px;text-align:center;cursor:pointer;margin-bottom:12px}
+.drop:active{background:var(--off)}
+.drop-txt{font-size:12px;color:var(--muted);margin-top:6px}
+.import-result{border-radius:8px;padding:12px;font-size:12px;margin-bottom:12px;display:none}
+.import-result.ok{display:block;background:var(--green-bg);color:var(--green-c);border:0.5px solid #B9E6B9}
+.import-result.err{display:block;background:var(--red-l);color:var(--red-d);border:0.5px solid #FFCCCC}
+.log-item{padding:9px 0;border-bottom:0.5px solid var(--border);font-size:12px}
+.log-item:last-child{border-bottom:none}
+.log-top{display:flex;justify-content:space-between;font-weight:700;color:var(--text)}
+.log-sub{color:var(--muted);margin-top:2px;font-size:11px}
+.cfg-note{font-size:11px;color:var(--muted);background:var(--off);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="brand">BATA ISS</div>
+      <div class="branch-sub" id="branchLabel">· Track</div>
+    </div>
+    <div class="header-right" style="text-align:right">
+      <div class="date-lbl">วันนี้</div>
+      <div class="date-val" id="todayDate">—</div>
+      <div style="margin-top:4px;display:flex;gap:6px;justify-content:flex-end">
+        <button onclick="loadSheet()" class="admin-btn">↻ รีเฟรช</button>
+        <button id="adminBtn" onclick="openAdmin()" class="admin-btn" style="display:none">⚙ นำเข้า/Log</button>
+      </div>
+    </div>
+  </div>
+  <div class="alert-bar" id="alertBar">
+    <div class="adot"></div>
+    <span id="alertTxt"></span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="search-row">
+    <div class="sbox">
+      <svg class="sico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="search" id="searchInput" placeholder="ค้นหาออเดอร์, เลขพัสดุ, SKU..." oninput="render()">
+    </div>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div class="loading-txt">กำลังโหลดข้อมูลจาก Google Sheets...</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="shdl"></div>
+  <div id="sheetBody"></div>
+</div>
+
+<div class="overlay" id="adminOverlay" onclick="closeAdmin()"></div>
+<div class="sheet" id="adminSheet">
+  <div class="shdl"></div>
+  <div class="shhead" style="margin-top:12px">
+    <div class="shoid" style="font-size:16px">นำเข้าออเดอร์ &amp; Log</div>
+    <div class="shsub">เฉพาะแอดมิน — สาขาไม่เห็นเมนูนี้</div>
+  </div>
+  <div class="shbody">
+    <div class="atabs">
+      <div class="atab on" id="atab_import" onclick="setAdminTab('import')">นำเข้าไฟล์</div>
+      <div class="atab" id="atab_log" onclick="setAdminTab('log')">ประวัติ Log</div>
+    </div>
+
+    <div class="apanel on" id="apanel_import">
+      <div class="cfg-note" id="cfgNote"></div>
+      <div class="drop" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:26px">📄</div>
+        <div class="drop-txt">แตะเพื่อเลือกไฟล์ .xlsx / .csv<br>คอลัมน์ที่รองรับ: Order1, Order2, วันที่สั่งซื้อ, Tracking No, SKU Code/รหัสสินค้า, Status/สถานะ (ไม่บังคับ)</div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(event)">
+      <div class="import-result" id="importResult"></div>
+    </div>
+
+    <div class="apanel" id="apanel_log">
+      <div id="logList"><div class="loading-txt" style="text-align:center;padding:20px 0">แตะแท็บนี้เพื่อโหลด Log</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('todayDate').textContent = new Date().toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+
+const SHEET_CSV = "https://docs.google.com/spreadsheets/d/1AxAB-XFUuHl4Vr2eZl8aEOeFzgpYTLviz-TfHjYMijs/export?format=csv&gid=1806778523";
+
+// Column mapping (0-indexed) — ปรับตรงนี้ถ้า column ใน Sheet เปลี่ยน
+const COL = {
+  order1:   0,
+  order2:   1,
+  sku:      2,
+  date:     3,
+  shop:     4,
+  remark:   5,
+  status:   6,  // สถานะข้อความไทยตัวจริงอยู่ตรงนี้ ไม่ใช่ index 9 (ตรวจสอบกับข้อมูลจริงหลายสิบแถวแล้ว)
+  rm:       7,
+  tracking: 8,
+  // col 9 = คอลัมน์ "Yes/ว่าง" ไม่เกี่ยวกับสถานะจัดส่ง ไม่ต้องใช้
+  doc:      10,
+  month:    11,
+};
+
+let grouped = new Map();
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const rows = [];
+  // skip header row (row 0)
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.replace(/^"|"$/g,'').trim());
+    if (!cols[COL.order1] && !cols[COL.order2]) continue;
+    rows.push({
+      order1:   cols[COL.order1]   || '',
+      order2:   cols[COL.order2]   || '',
+      sku:      cols[COL.sku]      || '',
+      date:     cols[COL.date]     || '',
+      shop:     cols[COL.shop]     || '',
+      remark:   cols[COL.remark]   || '',
+      rm:       cols[COL.rm]       || '',
+      tracking: cols[COL.tracking] || '',
+      status:   cols[COL.status]   || '',
+      doc:      cols[COL.doc]      || '',
+      month:    cols[COL.month]    || '',
+    });
+  }
+  return rows;
+}
+
+function groupRows(rows) {
+  const m = new Map();
+  rows.forEach(r => {
+    const k = r.order1 || r.order2;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
+  });
+  return m;
+}
+
+async function loadSheet() {
+  try {
+    const resp = await fetch(SHEET_CSV + '&_t=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('Sheet ไม่ได้ตั้งค่าเป็น Public');
+    const allRows = parseCSV(text);
+    if (!allRows.length) throw new Error('ไม่พบข้อมูลใน Sheet');
+
+    // กรองเฉพาะ 2 เดือนล่าสุด โดยดูจากวันที่สั่งซื้อ (dd/mm)
+    function getMonthFromRow(r) {
+      // ลองจาก date field ก่อน (format dd/m หรือ d/m)
+      if (r.date && r.date.includes('/')) {
+        const parts = r.date.trim().split('/');
+        if (parts.length >= 2) {
+          const m = parseInt(parts[1]);
+          if (!isNaN(m) && m >= 1 && m <= 12) return m;
+        }
+      }
+      // fallback: month column
+      if (r.month) {
+        const m = parseInt(r.month);
+        if (!isNaN(m) && m >= 1 && m <= 12) return m;
+      }
+      return null;
+    }
+
+    // หาเดือนล่าสุดที่มีในข้อมูล
+    const monthsFound = [...new Set(allRows.map(r => getMonthFromRow(r)).filter(m => m !== null))].sort((a,b) => b-a);
+    const top2Months = new Set(monthsFound.slice(0, 2));
+
+    const rows = allRows.filter(r => {
+      const m = getMonthFromRow(r);
+      return m !== null && top2Months.has(m);
+    });
+
+    // แสดงเดือนที่แสดงอยู่ใน subtitle
+    const monthNames = {1:'ม.ค.',2:'ก.พ.',3:'มี.ค.',4:'เม.ย.',5:'พ.ค.',6:'มิ.ย.',7:'ก.ค.',8:'ส.ค.',9:'ก.ย.',10:'ต.ค.',11:'พ.ย.',12:'ธ.ค.'};
+    const monthLabel = [...top2Months].sort((a,b)=>a-b).map(m=>monthNames[m]||m).join(' + ');
+    const subEl = document.getElementById('branchLabel');
+    if (subEl) subEl.textContent = '· Track  |  ' + monthLabel;
+
+    grouped = groupRows(rows);
+    renderTabs();
+    render();
+  } catch(err) {
+    document.getElementById('content').innerHTML = `
+      <div class="error-box">
+        <b>⚠ โหลดข้อมูลไม่ได้</b>
+        ${err.message}<br><br>
+        กรุณาตรวจสอบ:<br>
+        · Google Sheet ต้องเป็น "Anyone with the link" → View<br>
+        · URL ถูกต้อง
+        <br><button class="retry-btn" onclick="loadSheet()">ลองใหม่</button>
+      </div>`;
+  }
+}
+
+const overrides = (() => { try { return JSON.parse(localStorage.getItem('bata_ov')||'{}'); } catch { return {}; } })();
+const history  = (() => { try { return JSON.parse(localStorage.getItem('bata_hi')||'{}'); } catch { return {}; } })();
+
+function saveStatus(key, val) {
+  if (overrides[key] === val) return;
+  overrides[key] = val;
+  localStorage.setItem('bata_ov', JSON.stringify(overrides));
+  if (!history[key]) history[key] = [];
+  history[key].unshift({ s: val, t: new Date().toLocaleString('th-TH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) });
+  localStorage.setItem('bata_hi', JSON.stringify(history));
+}
+
+function hasTracking(rows) {
+  return rows.some(r => r.tracking && r.tracking !== '___TF' && r.tracking.trim().length > 4);
+}
+function isCancelled(rows) {
+  return rows.some(r => (r.status && r.status.includes('ยกเลิก')) || (r.shop && r.shop.includes('ยกเลิก')));
+}
+function hasRemark(rows) {
+  return rows.some(r => r.remark && r.remark.trim());
+}
+const STATUS_TEXT_MAP = {
+  'ยกเลิก':               'cancel',
+  'อยู่ระหว่างการจัดส่ง': 'transit',
+  'กำลังจัดส่ง':          'transit',
+  'เตรียมการจัดส่ง':      'prepare',
+  'เตรียมจัดส่ง':         'prepare',
+  'รอดำเนินการ':          'wait',
+};
+// ถ้ามีหลายแถวซ้ำ key เดียวกัน (เช่น แถวเก่าจากบั๊ก dedup ก่อนหน้านี้) ให้ถือว่าแถวที่อยู่ล่างสุดในชีต = ข้อมูลล่าสุด
+// เพราะ import ใหม่แต่ละครั้งจะต่อท้ายแถวใหม่ไปเรื่อยๆ ไม่เคยแทรกกลาง — เลยสแกนจากท้ายย้อนขึ้นไปหาแถวที่มี status ไม่ว่าง
+function latestStatusText(rows) {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    if (rows[i].status && rows[i].status.trim()) return rows[i].status.trim();
+  }
+  return '';
+}
+function autoStatus(key) {
+  const rows = grouped.get(key) || [];
+  if (isCancelled(rows)) return 'cancel';
+  const raw = latestStatusText(rows);
+  for (const txt in STATUS_TEXT_MAP) {
+    if (raw.includes(txt)) return STATUS_TEXT_MAP[txt];
+  }
+  const s = raw.toLowerCase();
+  if (s === 'confirmed') return hasTracking(rows) ? 'transit' : 'prepare';
+  return 'wait';
+}
+function getStatus(key) { return overrides[key] || autoStatus(key); }
+
+function isFlash(t) {
+  return /^TH[A-Z0-9]{11,13}$/i.test(t);
+}
+
+const ST = {
+  wait:    { lbl:'รอดำเนินการ',        ico:'⏳', acc:'acc-gray',  bdg:'bdg-gray',  sel:'sel-gray'   },
+  prepare: { lbl:'เตรียมการจัดส่ง',    ico:'📦', acc:'acc-amber', bdg:'bdg-amber', sel:'sel-amber'  },
+  transit: { lbl:'อยู่ระหว่างการจัดส่ง',ico:'🚛', acc:'acc-blue',  bdg:'bdg-blue',  sel:'sel-blue'   },
+  cancel:  { lbl:'ยกเลิกออเดอร์',      ico:'❌', acc:'acc-red',   bdg:'bdg-red',   sel:'sel-red'    },
+};
+
+let activeTab = 'all';
+
+function getTracks(rows) {
+  return [...new Set(rows.map(r=>r.tracking).filter(t=>t&&t!=='___TF'&&t.trim().length>4))];
+}
+function getShops(rows) {
+  return [...new Set(rows.map(r=>r.shop.replace(/^\d+:\s*/,'')).filter(Boolean))];
+}
+function getDate(rows) {
+  const r = rows.find(r=>r.date&&/\d+\/\d+/.test(r.date));
+  return r ? r.date : (rows.find(r=>r.date)?.date || '');
+}
+
+function renderTabs() {
+  const cnt = {all:0, wait:0, prepare:0, transit:0, cancel:0};
+  grouped.forEach((_,k) => {
+    cnt.all++;
+    const s = getStatus(k);
+    if (cnt[s] !== undefined) cnt[s]++;
+  });
+
+  const tabs = [
+    {k:'all',     lbl:`ทั้งหมด ${cnt.all}`},
+    {k:'wait',    lbl:`⏳ รอดำเนินการ ${cnt.wait}`},
+    {k:'prepare', lbl:`📦 เตรียมจัดส่ง ${cnt.prepare}`},
+    {k:'transit', lbl:`🚛 กำลังจัดส่ง ${cnt.transit}`},
+    {k:'cancel',  lbl:`❌ ยกเลิก ${cnt.cancel}`},
+  ];
+
+  document.getElementById('tabs').innerHTML = tabs.map(t =>
+    `<div class="tab${activeTab===t.k?' on':''}" onclick="setTab('${t.k}')">${t.lbl}</div>`
+  ).join('');
+
+  const waitCnt = cnt.wait + cnt.prepare;
+  const ab = document.getElementById('alertBar');
+  if (waitCnt > 0) {
+    ab.style.display = 'flex';
+    document.getElementById('alertTxt').textContent = `${waitCnt} ออเดอร์ยังไม่มีเลขพัสดุ`;
+  } else {
+    ab.style.display = 'none';
+  }
+}
+
+function setTab(k) { activeTab = k; renderTabs(); render(); }
+
+function cardHTML(key) {
+  const rows = grouped.get(key);
+  const s = getStatus(key);
+  const st = ST[s] || ST.wait;
+  const date = getDate(rows);
+  const shops = getShops(rows);
+  const tracks = getTracks(rows);
+  const remarks = rows.filter(r=>r.remark).map(r=>r.remark);
+  const firstTrack = tracks[0] || '';
+  const flash = firstTrack && isFlash(firstTrack);
+  const safe = key.replace(/[^a-zA-Z0-9]/g,'_');
+  const order2display = rows[0]?.order2 || key;
+
+  return `<div class="card" onclick="openDetail('${key.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+  <div class="ci">
+    <div class="acc ${st.acc}"></div>
+    <div class="cb">
+      <div class="r1">
+        <div class="oid">${order2display}</div>
+      </div>
+      <div class="r2">
+        ${date ? `<span class="mi"><svg class="misvg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${date}</span>` : ''}
+        <span class="mi bdg ${st.bdg}" style="padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700">${st.ico} ${st.lbl}</span>
+        ${rows.length>1 ? `<span class="mi"><svg class="misvg" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>${rows.length} SKU</span>` : ''}
+      </div>
+      ${remarks.length ? `<div class="rmk"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C06020" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${remarks[0]}</div>` : ''}
+      ${firstTrack
+        ? `<div class="trow">
+            <span class="tnum">${firstTrack}</span>
+            <button class="bcopy" id="cp_${safe}" onclick="doCopy(event,'${firstTrack}','cp_${safe}')">คัดลอก</button>
+           </div>`
+        : `<div class="notrack">ยังไม่มีเลขพัสดุ</div>`}
+    </div>
+  </div>
+</div>`;
+}
+
+function doCopy(e, txt, id) {
+  e.stopPropagation();
+  navigator.clipboard.writeText(txt).catch(()=>{});
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.textContent = '✓ คัดลอก';
+  btn.classList.add('ok');
+  setTimeout(() => { btn.textContent = 'คัดลอก'; btn.classList.remove('ok'); }, 1500);
+}
+
+function render() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  let keys = [...grouped.keys()].filter(key => {
+    const rows = grouped.get(key);
+    const s = getStatus(key);
+    if (activeTab === 'problem' && !hasRemark(rows)) return false;
+    if (activeTab !== 'all' && activeTab !== 'problem' && s !== activeTab) return false;
+    if (!q) return true;
+    const blob = [key, ...rows.map(r => [r.sku,r.shop,r.tracking,r.rm,r.order2,r.remark].join(' '))].join(' ').toLowerCase();
+    return blob.includes(q);
+  });
+
+  // แปลงวันที่ dd/mm → ตัวเลข สำหรับเรียง
+  function dateSort(rows) {
+    const d = getDate(rows);
+    if (!d) return 0;
+    const parts = d.split('/');
+    if (parts.length === 2) return parseInt(parts[1]||0)*100 + parseInt(parts[0]||0);
+    return 0;
+  }
+  keys.sort((a,b) => {
+    // ล่าสุดขึ้นบนเสมอ
+    const da = dateSort(grouped.get(a));
+    const db = dateSort(grouped.get(b));
+    return db - da;
+  });
+
+  if (!keys.length) {
+    document.getElementById('content').innerHTML = `<div class="empty"><div class="empty-ico">📭</div><div class="empty-txt">ไม่พบออเดอร์</div></div>`;
+    return;
+  }
+
+  const grpWait    = keys.filter(k => getStatus(k)==='wait');
+  const grpPrepare = keys.filter(k => getStatus(k)==='prepare');
+  const grpTransit = keys.filter(k => getStatus(k)==='transit');
+  const grpCancel  = keys.filter(k => getStatus(k)==='cancel');
+
+  let html = '';
+  function sec(label, list, cntCls) {
+    if (!list.length) return;
+    html += `<div class="sec-head"><h2>${label}</h2><span class="cnt ${cntCls}">${list.length}</span></div>`;
+    html += `<div class="cards">${list.map(k=>cardHTML(k)).join('')}</div>`;
+  }
+
+  if (activeTab==='all'||activeTab==='wait')    sec('⏳ รอดำเนินการ', grpWait, 'cnt-gray');
+  if (activeTab==='all'||activeTab==='prepare') sec('📦 เตรียมการจัดส่ง', grpPrepare, 'cnt-amber');
+  if (activeTab==='all'||activeTab==='transit') sec('🚛 อยู่ระหว่างการจัดส่ง', grpTransit, 'cnt-blue');
+  if (activeTab==='all'||activeTab==='cancel')  sec('❌ ยกเลิกออเดอร์', grpCancel, 'cnt-red');
+
+  document.getElementById('content').innerHTML = html || `<div class="empty"><div class="empty-ico">📭</div><div class="empty-txt">ไม่พบออเดอร์</div></div>`;
+}
+
+function openDetail(key) {
+  const rows = grouped.get(key) || [];
+  const s = getStatus(key);
+  const date = getDate(rows);
+  const tracks = getTracks(rows);
+  const hist = history[key] || [];
+
+  const subItems = rows.map((r,i) => {
+    const ht = r.tracking && r.tracking !== '___TF' && r.tracking.length > 4;
+    const fl = ht && isFlash(r.tracking);
+    return `<div class="subitem">
+      <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">SKU: ${r.sku}</div>
+      ${r.date ? `<div style="font-size:11px;color:var(--muted);margin-bottom:3px">วันที่: ${r.date}</div>` : ''}
+      ${ht ? `<div class="subtrack">
+        <span>${r.tracking}</span>
+        <button class="bcopy" style="font-size:10px;padding:2px 8px" onclick="cp('${r.tracking}',this)">คัดลอก</button>
+        ${fl?`<a class="track-open" href="https://www.flashexpress.co.th/fle/tracking/?se=${r.tracking}" target="_blank">ติดตาม ↗</a>`:''}
+      </div>` : `<div style="font-size:11px;color:var(--faint);margin-top:2px">ไม่มีเลขพัสดุ</div>`}
+      ${r.remark ? `<div class="subremark">⚠ ${r.remark}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const stMap = {'allocate':'wait','shipped':'transit','picked':'transit','cancel':'cancel'};
+    const histHTML = hist.length
+    ? hist.map(h => {
+        const sk = stMap[h.s] || h.s;
+        const hs = ST[sk] || {ico:'·', lbl:sk};
+        return `<div class="hi"><div class="hdot hdot-red">${hs.ico}</div><div class="htext"><div class="hs">${hs.lbl}</div><div class="ht">${h.t}</div></div></div>`;
+      }).join('')
+    : '<div class="hi"><div class="hdot hdot-gray">·</div><div class="htext"><div class="hs" style="color:var(--faint)">ยังไม่มีประวัติ</div></div></div>';
+
+  const safeId = key.replace(/[^a-z0-9]/gi,'_');
+
+  document.getElementById('sheetBody').innerHTML = `
+    <div class="shhead">
+      <div class="shoid">${rows[0]?.order2 || key}</div>
+      <div class="shsub" style="margin-top:2px;font-size:11px;color:rgba(255,255,255,0.6)">${key}</div>
+      <div class="shsub" style="margin-top:4px">${date?date+' · ':''}${rows.length} SKU · ${ST[s]?.ico||'?'} ${ST[s]?.lbl||s}</div>
+    </div>
+    <div class="shbody">
+      <div class="slbl">เลขพัสดุ</div>
+      <div class="iblock" style="margin-bottom:16px">
+        ${tracks.length
+          ? tracks.map(t => {
+              const fl = isFlash(t);
+              return `<div class="irow">
+                <span class="ilbl">เลขพัสดุ</span>
+                <span class="ival mono" style="flex:1">${t}</span>
+                <button class="bcopy" onclick="cp('${t}',this)" style="margin-right:4px">คัดลอก</button>
+                ${fl?`<a class="track-open" href="https://www.flashexpress.co.th/fle/tracking/?se=${t}" target="_blank">ติดตาม ↗</a>`:''}
+              </div>`;
+            }).join('')
+          : '<div class="irow"><span class="ilbl">เลขพัสดุ</span><span class="ival" style="color:var(--faint)">ยังไม่มีเลขพัสดุ</span></div>'}
+        <div class="irow"><span class="ilbl">Order 2</span><span class="ival">${rows[0]?.order2||'-'}</span></div>
+        <div class="irow"><span class="ilbl">Order 1</span><span class="ival" style="color:var(--muted)">${key}</span></div>
+        <div class="irow"><span class="ilbl">เลข RM</span><span class="ival">${rows[0]?.rm||'-'}</span></div>
+      </div>
+
+      <div class="slbl">รายการสินค้า</div>
+      <div class="sublist" style="margin-bottom:16px">${subItems}</div>
+
+      <div class="slbl">ประวัติสถานะ</div>
+      <div class="hist" id="hi_${safeId}">${histHTML}</div>
+    </div>`;
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function cp(txt, btn) {
+  navigator.clipboard.writeText(txt).catch(()=>{});
+  btn.textContent = '✓';
+  btn.classList.add('ok');
+  setTimeout(() => { btn.textContent = 'คัดลอก'; btn.classList.remove('ok'); }, 1400);
+}
+
+
+
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+let _ty = 0;
+document.getElementById('sheet').addEventListener('touchstart', e => { _ty = e.touches[0].clientY; });
+document.getElementById('sheet').addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - _ty > 70) closeSheet(); });
+
+/* ===================== ADMIN: Import + Log ===================== */
+// ตั้งค่า URL ของ Apps Script Web App ที่นี่หลัง Deploy (ดูขั้นตอนแยกที่ให้ไว้)
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhAG2xYuUNZjB-AtBOlYxTFZUZQYpNEMWigpgGsjpvX2njhCYEdNInYrb2j-WVECoTig/exec";
+
+const isAdmin = new URLSearchParams(location.search).get('admin') === '1';
+if (isAdmin) document.getElementById('adminBtn').style.display = 'inline-block';
+
+function openAdmin() {
+  if (!APPS_SCRIPT_URL) {
+    document.getElementById('cfgNote').textContent = '⚠ ยังไม่ได้ใส่ APPS_SCRIPT_URL ในไฟล์นี้ — นำเข้าไฟล์ไม่ได้จนกว่าจะตั้งค่า';
+  } else {
+    document.getElementById('cfgNote').textContent = 'ไฟล์ที่นำเข้าจะถูกจับคู่กับ Order2 + SKU เดิม — ถ้ามีอยู่แล้วจะอัปเดตสถานะ/เลขพัสดุให้ ถ้ายังไม่มีจะเพิ่มเป็นแถวใหม่ (import ไฟล์เดิมซ้ำเพื่ออัปเดตสถานะได้เลย)';
+  }
+  document.getElementById('adminOverlay').classList.add('open');
+  document.getElementById('adminSheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').classList.remove('open');
+  document.getElementById('adminSheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function setAdminTab(t) {
+  document.getElementById('atab_import').classList.toggle('on', t==='import');
+  document.getElementById('atab_log').classList.toggle('on', t==='log');
+  document.getElementById('apanel_import').classList.toggle('on', t==='import');
+  document.getElementById('apanel_log').classList.toggle('on', t==='log');
+  if (t === 'log') loadLog();
+}
+
+// จับคู่ชื่อคอลัมน์ในไฟล์ที่ import แบบยืดหยุ่น ไม่สนตัวพิมพ์เล็ก/ใหญ่หรือช่องว่าง
+function detectCols(headerRow) {
+  const norm = headerRow.map(h => String(h||'').toLowerCase().replace(/\s+/g,''));
+  const find = (test) => norm.findIndex(test);
+  return {
+    order1:   find(h => h.includes('order1') || h.includes('oder1')),
+    order2:   find(h => h.includes('order2') || h.includes('oder2')),
+    date:     find(h => h.includes('วันที่')),
+    tracking: find(h => h.includes('tracking')),
+    sku:      find(h => h.includes('sku') || h.includes('รหัสสินค้า')),
+    status:   find(h => h.includes('status') || h.includes('สถานะ')),
+  };
+}
+
+function fmtDate(v) {
+  // รองรับทั้ง Date object (จาก Excel serial) และ string "YYYY-MM-DD HH:mm:ss"
+  let d = null;
+  if (v instanceof Date && !isNaN(v)) d = v;
+  else if (typeof v === 'string') {
+    const m = v.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) d = new Date(+m[1], +m[2]-1, +m[3]);
+  }
+  if (!d) return '';
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}`;
+}
+
+function padOrder2(v) {
+  const digits = String(v||'').replace(/\D/g,'');
+  return digits ? digits.padStart(13,'0') : '';
+}
+
+async function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const resultEl = document.getElementById('importResult');
+  resultEl.className = 'import-result';
+  resultEl.textContent = '';
+
+  if (!APPS_SCRIPT_URL) {
+    resultEl.className = 'import-result err';
+    resultEl.textContent = '⚠ ยังไม่ได้ตั้งค่า APPS_SCRIPT_URL ในไฟล์ — ใส่ URL ก่อนถึงจะนำเข้าได้';
+    e.target.value = '';
+    return;
+  }
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+    if (!data.length) throw new Error('ไฟล์ไม่มีข้อมูล');
+
+    const cols = detectCols(data[0]);
+    if (cols.order1 < 0 && cols.order2 < 0) throw new Error('หาคอลัมน์ Order1/Order2 ในไฟล์ไม่เจอ ตรวจชื่อหัวตารางอีกครั้ง');
+
+    const rows = [];
+    for (let i = 1; i < data.length; i++) {
+      const r = data[i];
+      if (!r || (!r[cols.order1] && !r[cols.order2])) continue;
+      const dateVal = cols.date >= 0 ? r[cols.date] : '';
+      rows.push({
+        order1:   cols.order1 >= 0 ? String(r[cols.order1]||'').trim() : '',
+        order2:   cols.order2 >= 0 ? padOrder2(r[cols.order2]) : '',
+        date:     fmtDate(dateVal),
+        tracking: cols.tracking >= 0 ? String(r[cols.tracking]||'').trim() : '',
+        sku:      cols.sku >= 0 ? String(r[cols.sku]||'').trim() : '',
+        status:   cols.status >= 0 ? String(r[cols.status]||'').trim() : '',
+      });
+    }
+    if (!rows.length) throw new Error('ไม่พบแถวข้อมูลที่ import ได้ในไฟล์นี้');
+
+    resultEl.className = 'import-result';
+    resultEl.textContent = `กำลังนำเข้า ${rows.length} แถว...`;
+
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // เลี่ยง CORS preflight ของ Apps Script
+      body: JSON.stringify({ action: 'import', filename: file.name, rows }),
+    });
+    const out = await resp.json();
+    if (out.error) throw new Error(out.error);
+
+    resultEl.className = 'import-result ok';
+    resultEl.textContent = `✅ เพิ่มออเดอร์ใหม่ ${out.added} แถว · อัปเดตของเดิม ${out.updated} แถว (ทั้งหมดในไฟล์ ${out.total} แถว)`;
+    loadSheet();
+  } catch (err) {
+    resultEl.className = 'import-result err';
+    resultEl.textContent = '⚠ นำเข้าไม่สำเร็จ: ' + err.message;
+  } finally {
+    e.target.value = '';
+  }
+}
+
+async function loadLog() {
+  const el = document.getElementById('logList');
+  if (!APPS_SCRIPT_URL) {
+    el.innerHTML = '<div class="cfg-note">⚠ ยังไม่ได้ตั้งค่า APPS_SCRIPT_URL</div>';
+    return;
+  }
+  el.innerHTML = '<div class="loading-txt" style="text-align:center;padding:20px 0">กำลังโหลด...</div>';
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL + '?action=log');
+    const out = await resp.json();
+    if (out.error) throw new Error(out.error);
+    if (!out.logs || !out.logs.length) {
+      el.innerHTML = '<div class="loading-txt" style="text-align:center;padding:20px 0">ยังไม่มีประวัติการนำเข้า</div>';
+      return;
+    }
+    el.innerHTML = out.logs.slice().reverse().map(l => `
+      <div class="log-item">
+        <div class="log-top"><span>${l.filename||'-'}</span><span>+${l.added} ใหม่ / ${l.updated} อัปเดต</span></div>
+        <div class="log-sub">${l.time||''}</div>
+      </div>`).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="import-result err" style="display:block">⚠ โหลด Log ไม่ได้: ${err.message}</div>`;
+  }
+}
+
+loadSheet();
+</script>
+</body>
+</html>
