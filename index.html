@@ -355,10 +355,22 @@ function isCancelled(rows) {
 function hasRemark(rows) {
   return rows.some(r => r.remark && r.remark.trim());
 }
+const STATUS_TEXT_MAP = {
+  'ยกเลิก':               'cancel',
+  'อยู่ระหว่างการจัดส่ง': 'transit',
+  'กำลังจัดส่ง':          'transit',
+  'เตรียมการจัดส่ง':      'prepare',
+  'เตรียมจัดส่ง':         'prepare',
+  'รอดำเนินการ':          'wait',
+};
 function autoStatus(key) {
   const rows = grouped.get(key) || [];
   if (isCancelled(rows)) return 'cancel';
-  const s = (rows[0].status || '').toLowerCase();
+  const raw = (rows[0].status || '').trim();
+  for (const txt in STATUS_TEXT_MAP) {
+    if (raw.includes(txt)) return STATUS_TEXT_MAP[txt];
+  }
+  const s = raw.toLowerCase();
   if (s === 'confirmed') return hasTracking(rows) ? 'transit' : 'prepare';
   return 'wait';
 }
